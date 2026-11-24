@@ -31,8 +31,12 @@ const router = createRouter({ history: createWebHistory(import.meta.env.BASE_URL
  *  Use to.matched para revisar también la ruta padre (/tabs/).
  */
 router.beforeEach(async (to) => {
-  void [to, useAuth];
-  // TODO [M3]
+  const { estaAutenticado, cargarToken } = useAuth();
+  await cargarToken();
+
+  const requiereSesion = to.matched.some((ruta) => ruta.meta.requiereSesion);
+  if (requiereSesion && !estaAutenticado.value) return '/login';
+  if (to.meta.soloInvitados && estaAutenticado.value) return '/tabs/equipos';
 });
 
 export default router;

@@ -106,8 +106,40 @@ const errores = ref<Record<string, string>>({});
  */
 onIonViewWillEnter(async () => {
   errores.value = {};
-  void [categorias, obtener, listaCategorias, estadoActual, ionRouter];
+
+  try {
+    listaCategorias.value = await categorias();
+
+    if (!id) {
+      Object.assign(datos, vacio());
+      estadoActual.value = 'disponible';
+      return;
+    }
+
+    const equipo = await obtener(id);
+    estadoActual.value = equipo.estado;
+    Object.assign(datos, {
+      codigo: equipo.codigo,
+      nombre: equipo.nombre,
+      categoria_id: equipo.categoria?.id ?? null,
+      estado: equipo.estado === 'mantenimiento' ? 'mantenimiento' : 'disponible',
+      fecha_adquisicion: equipo.fecha_adquisicion,
+      costo_interno: null, // La API no lo devuelve: se debe volver a ingresar.
+    });
+  } catch (fallo) {
+    if (fallo instanceof ErrorApi && fallo.status === 404) {
+      await mostrarToast('El equipo ya no existe.', 'warning');
+      volverALista();
+    } else if (!(fallo instanceof ErrorApi && fallo.status === 401)) {
+      await mostrarToast('No fue posible cargar el formulario.', 'danger');
+    }
+  }
 });
+
+function volverALista() {
+  if (ionRouter.canGoBack()) ionRouter.back();
+  else ionRouter.navigate('/tabs/equipos', 'root', 'replace');
+}
 
 /**
  * TODO [M5] guardar()
@@ -120,6 +152,37 @@ onIonViewWillEnter(async () => {
  *     404 → toast "El equipo ya no existe."   ·   otros → toast genérico.
  */
 async function guardar() {
-  void [loadingController, actualizar, crear, ErrorApi, mostrarToast, vibrar];
+  errores.value = {};
+  const loading = await loadingController.create({ message: 'Guardando…' });
+  await loading.present();
+
+  try {
+    const costoTexto = String(datos.costo_interno ?? '').trim();
+    const cuerpo: DatosEquipo = {
+      codigo: datos.codigo.trim().toUpperCase(),
+      nombre: datos.nombre.trim(),
+      categoria_id: datos.categoria_id,
+      fecha_adquisicion: datos.fecha_adquisicion,
+      costo_interno: costoTexto === '' ? null : Number(costoTexto),
+    };
+    if (estadoActual.value !== 'prestado') cuerpo.estado = datos.estado;
+
+    if (id) await actualizar(id, cuerpo);
+    else await crear(cuerpo);
+
+    await vibrar();
+    await mostrarToast('Equipo guardado.', 'success');
+    volverALista();
+  } catch (fallo) {
+    if (fallo instanceof ErrorApi && fallo.status === 422) {
+      errores.value = fallo.erroresPorCampo;
+    } else if (fallo instanceof ErrorApi && fallo.status === 404) {
+      await mostrarToast('El equipo ya no existe.', 'warning');
+    } else if (!(fallo instanceof ErrorApi && fallo.status === 401)) {
+      await mostrarToast('No fue posible guardar el equipo.', 'danger');
+    }
+  } finally {
+    await loading.dismiss();
+  }
 }
 </script>

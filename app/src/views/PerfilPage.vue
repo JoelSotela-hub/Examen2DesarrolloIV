@@ -14,11 +14,26 @@
           <ion-label>{{ usuario?.nombre ?? '—' }}</ion-label>
         </ion-item>
 
-        <!--
-          TODO [M7] Sección "Dispositivo" con ion-list-header y un ion-item por dato:
-            Plataforma (Capacitor.getPlatform()), Modelo, Sistema (operatingSystem + osVersion)
-            y Conexión (ion-badge con `tipo` o "sin conexión" según `conectado`).
-        -->
+        <ion-list-header>Dispositivo</ion-list-header>
+        <ion-item>
+          <ion-label>Plataforma: {{ plataforma }}</ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label>Modelo</ion-label>
+          <ion-note slot="end">{{ dispositivo?.model ?? '—' }}</ion-note>
+        </ion-item>
+        <ion-item>
+          <ion-label>Sistema</ion-label>
+          <ion-note slot="end">
+            {{ dispositivo ? `${dispositivo.operatingSystem} ${dispositivo.osVersion}` : '—' }}
+          </ion-note>
+        </ion-item>
+        <ion-item>
+          <ion-label>Conexión</ion-label>
+          <ion-badge slot="end" :color="conectado ? 'success' : 'danger'">
+            {{ conectado ? tipo : 'sin conexión' }}
+          </ion-badge>
+        </ion-item>
       </ion-list>
 
       <div class="ion-padding">
@@ -47,7 +62,10 @@ const ionRouter = useIonRouter();
 // TODO [M7] Obtenga la plataforma y la información del dispositivo (Device.getInfo()) al entrar a la página.
 const plataforma = Capacitor.getPlatform();
 const dispositivo = ref<DeviceInfo | null>(null);
-void [plataforma, dispositivo, Device, onIonViewWillEnter, conectado, tipo, IonNote, IonBadge];
+
+onIonViewWillEnter(async () => {
+  dispositivo.value = await Device.getInfo();
+});
 
 async function salir() {
   await cerrarSesion();
